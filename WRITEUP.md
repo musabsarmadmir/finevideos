@@ -1,19 +1,17 @@
 # Write-up
 
 ## 1. Your timings (100 words)
-How long did your first working version take on the full 50 files, and how long did your final version take? Which single change saved the most time?
-My first working version took around 11hrs approximate, i used the 
+My first working version took approximately 11 hours to process all 50 files. The final version took approximately 5 hours. The largest time saving came from replacing slow whole-run Kaggle notebook execution with a distributed script that split work across the available GPU workers. I also used strides and chunked the inputs, allowing me to test individual files and sections quickly instead of rerunning the entire dataset after an error. Batched inference and avoiding repeated setup further reduced runtime. Together, these changes cut total processing time by about 6 hours. The final workflow became much faster and easier to validate.
 ## 2. Your pipeline (150 words)
-Describe what your script does, step by step, from opening a Parquet file to writing an output line.
-
+My script first reads the settings and opens each Parquet file with PyArrow. It reads the mp4 column row by row, gives every video a file-and-row ID, and sends each video to a decode thread using PyAV. The decoder converts presentation timestamps into seconds from the first frame, applies rotation, and puts selected frames into batches. A queue sends batches to each GPU worker running YOLO11l. The worker runs FP16 inference for the five required classes and collects detections and person counts for every second. It writes one JSON line per second, or an error line. Finally, all worker part files are merged into results.jsonl.
 ## 3. Where the time goes (150 words)
-Which part of your final version takes the most time? How did you measure this?
-
+YOLO11l inference takes most of the final version’s runtime, followed by video decoding and frame transfer. I measured this using counters in the script. It recorded cumulative inference time, time spent waiting for decoded batches, elapsed time, processed frames, and frames per second for every GPU. It printed these measurements every 30 seconds and again when the worker finished. The script measured about 100 frames per second on each Kaggle T4 GPU. This confirmed that increasing sampling stride would reduce inference work, although the graded run has to use every frame. PyAV decoding ran in a separate producer thread, so decoding overlapped with model processing. The bounded queue also showed whether the decoder or inference loop became the bottleneck. GPU inference was the main constraint because repeated YOLO warm-up and model loading would otherwise dominate smaller tests. Reading, merging, validation, and JSON writing were much smaller parts of the complete runtime.
 ## 4. Checking correctness (100 words)
-How did you check that your results stayed correct after you made the script faster?
-
+I checked correctness with a stride-1 run against an earlier OpenCV and YOLO FP32 implementation on eight videos covering 2,778 seconds. The class and person results matched exactly: the F1 score was 1.000, exact person counts were 1.000, and people counts differed by at most one in all cases. I made an seperate score.py file which compared my final version to the new one, with these figures: seconds=55044 missing=0 F1=0.9888 exact=0.9638 within1=0.9982.
 ## 5. Working with AI (100 words)
-Describe one suggestion from an AI tool that was wrong or that you decided not to use. How did you find out it was wrong, or why did you reject it?
+One AI suggestion from claude was to keep the Kaggle notebook and convert it into a script by merely changing the notebook reference in the metadata. I rejected this because Kaggle requires the metadata’s code file and kernel type to match the uploaded source. It may also reference inaccessible or incorrect dataset slugs. I found the problem when Kaggle failed to locate the expected notebook file and could not access a non-existent dataset name. I therefore corrected the metadata to reference run.py, set the kernel type to script, and attach the real finevideo dataset. Syntax compilation and Kaggle upload status confirmed that this approach was valid.
 
 ## 6. Next steps (100 words)
-If you had one more week, what would you change, and why?
+If I had another week, I would test stride-1 execution with more GPU configurations and compare batch sizes. This would identify the fastest legal configuration rather than using stride 5 only for temporary results. I would also benchmark PyAV decoding separately to determine whether CPU decoding or GPU inference limits throughput.
+
+Next, I would test PTS handling and rotation metadata on known rotated videos. Finally, I would add automated regression tests covering error rows, resume files, empty videos, half-frame people boundaries, and shorter final seconds. These changes would improve speed, confirm correctness at every frame, and make future Kaggle runs easier to reproduce and restart.
