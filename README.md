@@ -8,7 +8,11 @@ For each second of each video, records which of five objects are present
     python -m venv .venv && source .venv/bin/activate
     pip install -r requirements.txt
 
-No system packages are needed (PyAV wheels bundle FFmpeg).
+System packages (Ubuntu; OpenCV needs libGL on a bare server):
+
+    sudo apt-get install -y libgl1 libglib2.0-0
+
+Python 3.11 is expected. PyAV wheels bundle FFmpeg.
 
 ## Preparation command (needs internet, run once from the repo root)
 
@@ -25,10 +29,10 @@ https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11l.pt
 The default is `--stride 1`: every frame is inferred, as the brief specifies.
 One worker process is started per visible GPU. Run `python run.py --help` for
 the other options (`--stride`, `--batch`, `--gpus`, `--max-videos`,
-`--dump-frames`, `--allow-cpu`).
+`--dump-frames`).
 
-The script exits with an error if `yolo11l.pt` is missing or CUDA is not
-available, instead of silently running on CPU.
+The script exits with an error if `yolo11l.pt` is missing. It does not check for
+CUDA: without a GPU it would fall back to CPU and be very slow.
 
 ## How it works
 
@@ -75,8 +79,9 @@ The sample is small, so these numbers are indicative only.
 - The rotation direction has not been tested on a real rotated video.
 - Not timed on an RTX 4090.
 - The 125-hour results were produced on Kaggle with Python 3.13, torch
-  2.11.0+cu130, ultralytics 8.4.216 and av 19.0.2. `requirements.txt` pins a
-  CUDA 12 build of torch for the grader's driver. I could not test that
+  2.11.0+cu130, ultralytics 8.4.216 and av 19.0.2. `requirements.txt` instead
+  pins torch 2.10.0 (default PyPI wheel is CUDA 12.8) and av 16.0.1, which have
+  wheels for Python 3.11, for the grader's setup. I could not test that
   combination, and a different torch build could change FP16 outputs slightly.
 - Ultralytics 8.4.216 prints a deprecation warning about the `half` argument on
   every batch. I did not verify that FP16 is still used; measured speed was
