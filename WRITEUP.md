@@ -13,5 +13,4 @@ One AI suggestion from claude was to keep the Kaggle notebook and convert it int
 
 ## 6. Next steps (100 words)
 If I had another week, I would test stride-1 execution with more GPU configurations and compare batch sizes. This would identify the fastest legal configuration rather than using stride 5 only for temporary results. I would also benchmark PyAV decoding separately to determine whether CPU decoding or GPU inference limits throughput.
-
 Next, I would test PTS handling and rotation metadata on known rotated videos. Finally, I would add automated regression tests covering error rows, resume files, empty videos, half-frame people boundaries, and shorter final seconds. These changes would improve speed, confirm correctness at every frame, and make future Kaggle runs easier to reproduce and restart.
